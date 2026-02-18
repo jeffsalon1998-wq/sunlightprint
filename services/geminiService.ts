@@ -1,11 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DocumentData } from '../types';
 
-// Initialize Gemini
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const fetchMockDatabaseRecords = async (): Promise<DocumentData[]> => {
   try {
+    // Initialize Gemini inside the function to avoid top-level crashes if process is undefined
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key missing");
+    
+    const ai = new GoogleGenAI({ apiKey });
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Generate 6 mock "Requisition Form" records for a hotel or resort called "MaroonPrint Resort".

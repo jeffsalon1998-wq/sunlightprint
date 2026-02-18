@@ -24,6 +24,7 @@ import {
 const App: React.FC = () => {
   // Splash Screen State
   const [hasEntered, setHasEntered] = useState(false);
+  const [splashVisible, setSplashVisible] = useState(false);
 
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -46,6 +47,8 @@ const App: React.FC = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Trigger splash animation on mount
+    setTimeout(() => setSplashVisible(true), 100);
     loadData();
   }, []);
 
@@ -197,12 +200,22 @@ const App: React.FC = () => {
       /* Hide scrollbars */
       ::-webkit-scrollbar { display: none; }
     }
+    
+    /* Splash Screen Animations */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeInUp {
+      animation: fadeInUp 1s ease-out forwards;
+    }
   `;
 
   // SPLASH SCREEN RENDER
   if (!hasEntered) {
     return (
       <div className="h-screen w-screen bg-maroon-950 flex flex-col items-center justify-center relative overflow-hidden">
+        <style>{printStyles}</style>
         {/* Decorative Background Elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
            <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-maroon-900/50 rounded-full blur-[100px]"></div>
@@ -210,7 +223,7 @@ const App: React.FC = () => {
            <div className="absolute -bottom-[10%] left-[20%] w-[40%] h-[40%] bg-maroon-800/50 rounded-full blur-[100px]"></div>
         </div>
 
-        <div className="z-10 flex flex-col items-center animate-in fade-in zoom-in-95 duration-1000 fill-mode-forwards">
+        <div className={`z-10 flex flex-col items-center transition-all duration-1000 ${splashVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <div className="text-center mb-12">
              <div className="inline-block relative">
                 <h1 className="text-7xl md:text-9xl text-gold-500 leading-tight drop-shadow-2xl" style={{ fontFamily: 'Vivaldi, "Brush Script MT", cursive' }}>
@@ -261,7 +274,7 @@ const App: React.FC = () => {
       {/* Print Settings Modal */}
       {isPrintModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-maroon-950/90 backdrop-blur-sm print:hidden">
-           <div className="bg-maroon-900 border border-gold-500 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+           <div className="bg-maroon-900 border border-gold-500 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeInUp">
               <div className="p-6 border-b border-maroon-800 bg-maroon-800/50 flex justify-between items-center">
                  <div className="flex items-center gap-3">
                     <div className="p-2 bg-gold-500 rounded-lg text-maroon-900">
@@ -485,8 +498,8 @@ const App: React.FC = () => {
                <p className="font-serif animate-pulse">Retrieving records from database...</p>
             </div>
           ) : selectedDoc ? (
-            <div className={`animate-in fade-in zoom-in-95 duration-300 print:animate-none w-full flex justify-center transition-all print:opacity-100 print:filter-none print:scale-100 ${
-               isPrintModalOpen ? 'opacity-50 blur-sm scale-95' : 'opacity-100 scale-100'
+            <div className={`w-full flex justify-center transition-all duration-300 print:opacity-100 print:filter-none print:scale-100 ${
+               isPrintModalOpen ? 'opacity-50 blur-sm scale-95' : 'opacity-100 scale-100 animate-fadeInUp'
             }`}>
               <PrintableDocument data={selectedDoc} settings={printSettings} />
             </div>

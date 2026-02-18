@@ -6,13 +6,22 @@ import { fetchMockDatabaseRecords } from './geminiService';
 const TURSO_URL = "https://prrequest-vercel-icfg-tf7wnf43zngjwvbur4t9rp6n.aws-us-east-1.turso.io";
 const TURSO_AUTH_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzEwNjA0NDEsImlkIjoiNTEyODlkNzQtYzhjNi00YzllLTg2YjYtNjk1MTZlY2ZjNDgzIiwicmlkIjoiMzQyNmUyODUtYjhlNS00OWI2LWE0ZDktNDFmZTQ3MzE0ZjNjIn0.rqlTsVVTqoMowmh-2XO9pptsb77qdThUvOvyH95KNsTkCUaOKiO2DwHMnl72qET3ORXfFyHjELmyTu4rLMKuDA";
 
-const client = createClient({
-  url: TURSO_URL,
-  authToken: TURSO_AUTH_TOKEN
-});
+// Lazy initialization pattern
+let clientInstance: any = null;
+
+const getClient = () => {
+  if (!clientInstance) {
+    clientInstance = createClient({
+      url: TURSO_URL,
+      authToken: TURSO_AUTH_TOKEN
+    });
+  }
+  return clientInstance;
+};
 
 export const updateRequisitionStatus = async (id: string, status: string): Promise<void> => {
   try {
+    const client = getClient();
     await client.execute({
       sql: "UPDATE requisitions SET status = ? WHERE id = ?",
       args: [status, id]
@@ -25,6 +34,7 @@ export const updateRequisitionStatus = async (id: string, status: string): Promi
 export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
   try {
     console.log("Attempting to connect to Turso DB...");
+    const client = getClient();
     
     // 1. Fetch the main requisitions
     // We select all columns, which includes the 'items' JSON column
