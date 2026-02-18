@@ -17,10 +17,14 @@ import {
   Copy,
   WifiOff,
   FileDown,
-  PenTool
+  PenTool,
+  ArrowRight
 } from 'lucide-react';
 
 const App: React.FC = () => {
+  // Splash Screen State
+  const [hasEntered, setHasEntered] = useState(false);
+
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -195,6 +199,61 @@ const App: React.FC = () => {
     }
   `;
 
+  // SPLASH SCREEN RENDER
+  if (!hasEntered) {
+    return (
+      <div className="h-screen w-screen bg-maroon-950 flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Decorative Background Elements */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+           <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-maroon-900/50 rounded-full blur-[100px]"></div>
+           <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-gold-600/10 rounded-full blur-[80px]"></div>
+           <div className="absolute -bottom-[10%] left-[20%] w-[40%] h-[40%] bg-maroon-800/50 rounded-full blur-[100px]"></div>
+        </div>
+
+        <div className="z-10 flex flex-col items-center animate-in fade-in zoom-in-95 duration-1000 fill-mode-forwards">
+          <div className="text-center mb-12">
+             <div className="inline-block relative">
+                <h1 className="text-7xl md:text-9xl text-gold-500 leading-tight drop-shadow-2xl" style={{ fontFamily: 'Vivaldi, "Brush Script MT", cursive' }}>
+                  Sunlight
+                </h1>
+                {/* Underline accent */}
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-2/3 h-1 bg-gradient-to-r from-transparent via-gold-500 to-transparent opacity-50"></div>
+             </div>
+             
+             <div className="mt-4 flex items-center justify-center gap-4">
+                <div className="h-px w-8 bg-maroon-400"></div>
+                <span className="text-sm md:text-lg tracking-[0.4em] font-bold text-maroon-100 uppercase font-sans">
+                  Hotel, Coron
+                </span>
+                <div className="h-px w-8 bg-maroon-400"></div>
+             </div>
+             
+             <p className="mt-6 text-maroon-300 font-serif italic text-lg tracking-wide">
+                Requisition Printing System
+             </p>
+          </div>
+
+          <button 
+            onClick={() => setHasEntered(true)}
+            className="group relative px-10 py-4 bg-transparent overflow-hidden rounded-full transition-all duration-500 hover:shadow-[0_0_50px_rgba(250,202,21,0.2)] border border-gold-500/30 hover:border-gold-500"
+          >
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-gold-600 to-gold-400 opacity-80 group-hover:opacity-100 transition-opacity duration-300"></div>
+            
+            <span className="relative flex items-center gap-3 text-maroon-950 font-bold text-lg tracking-widest uppercase z-10">
+              Enter System
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+            </span>
+          </button>
+        </div>
+        
+        <div className="absolute bottom-6 text-maroon-500/50 text-[10px] tracking-[0.2em] font-sans">
+            SECURE DATABASE CONNECTION ESTABLISHED
+        </div>
+      </div>
+    );
+  }
+
+  // MAIN APP RENDER
   return (
     <div className="flex h-screen bg-maroon-950 text-white overflow-hidden relative">
       <style>{printStyles}</style>
