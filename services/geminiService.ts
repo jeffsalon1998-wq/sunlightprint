@@ -11,19 +11,20 @@ export const fetchMockDatabaseRecords = async (): Promise<DocumentData[]> => {
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate 6 mock "Requisition Form" records for a hotel or resort called "MaroonPrint Resort".
+      contents: `Generate 10 mock "Requisition Form" records for a hotel or resort called "MaroonPrint Resort".
       
       Fields required:
-      - id (Serial Code, e.g., NO. 12345)
-      - department (e.g., Kitchen, Housekeeping, Front Office)
-      - purpose (e.g., "For guest amenities", "Weekly restocking")
-      - date (current dates)
+      - id (Serial Code, e.g., NO. 12345 or SGHC PUR-2026-02-0001)
+      - department (e.g., Purchasing, Kitchen, Housekeeping, Front Office)
+      - purpose (e.g., "For guest amenities", "Weekly restocking", "Office supplies")
+      - date (current dates, some from 2026-02-18 and 2026-02-19)
       - deliverOn (future dates)
-      - status (Pending, Approved)
+      - status (Pending, Approved, For signing)
       - items: Array of { description, quantity, uom (pcs, box, kg), unitPrice, total }
       - totalAmount (sum of item totals)
       - Signatories names: preparedBy, notedBy, approvedBy, receivedBy, checkedBy.
 
+      Ensure many records are from "Purchasing" department and use the ID format "SGHC PUR-2026-02-XXXX".
       Ensure the data is realistic for a hotel requisition context.`,
       config: {
         responseMimeType: "application/json",

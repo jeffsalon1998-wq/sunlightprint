@@ -21,8 +21,8 @@ const formatDate = (dateString: string): string => {
 
 const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, isDraft = false }) => {
   // Logic to determine paper size
-  // 12 items is the calibrated limit for Half A4 (148.5mm height)
-  const ITEM_LIMIT_HALF_PAGE = 12;
+  // 10 items is the calibrated limit for Half A4 (148.5mm height)
+  const ITEM_LIMIT_HALF_PAGE = 10;
   const isFullPage = data.items.length > ITEM_LIMIT_HALF_PAGE;
 
   // Dimensions
@@ -32,7 +32,7 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
   };
 
   // Determine minimum rows to fill the space aesthetically
-  // 12 for Half A4, 25 for Full A4 (approximate to fill space without pushing footer off)
+  // 10 for Half A4, 25 for Full A4 (approximate to fill space without pushing footer off)
   const minRows = isFullPage ? 25 : ITEM_LIMIT_HALF_PAGE;
   const emptyRows = Math.max(0, minRows - data.items.length);
 
@@ -151,7 +151,7 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
                     .trim();
 
                  return (
-                 <tr key={idx} className="h-5">
+                 <tr key={idx} className="h-[18px]">
                     <td className="border-r border-black border-b border-gray-400 px-1 font-bold uppercase truncate">{item.description}</td>
                     <td className="border-r border-black border-b border-gray-400 px-1"></td>
                     <td className="border-r border-black border-b border-gray-400 px-1 text-center font-bold">{item.quantity}</td>
@@ -189,7 +189,7 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
                )})}
                {/* Empty rows to fill layout */}
                {Array.from({ length: emptyRows }).map((_, idx) => (
-                 <tr key={`empty-${idx}`} className="h-5">
+                 <tr key={`empty-${idx}`} className="h-[18px]">
                     <td className="border-r border-black border-b border-gray-400"></td>
                     <td className="border-r border-black border-b border-gray-400"></td>
                     <td className="border-r border-black border-b border-gray-400"></td>
@@ -205,9 +205,9 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
                ))}
                
                {/* Grand Total Row */}
-               <tr className="h-5 font-bold text-[10px]">
+               <tr className="h-[18px] font-bold text-[10px]">
                    <td className="border-r border-black border-t border-black" colSpan={5}></td>
-                   <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black">GRAND TOTAL</td>
+                   <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black whitespace-nowrap">GRAND TOTAL</td>
                    <td className="border-r border-black border-t border-black text-right px-1 text-black">{data.totalAmount.toFixed(2)}</td>
                    <td className="border-r border-black border-t border-black" colSpan={2}></td>
                </tr>
@@ -216,9 +216,9 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
       </div>
 
       {/* Footer / Signatories */}
-      <div className="mt-3 text-[9px] font-bold shrink-0 text-black">
+      <div className="mt-2 text-[9px] font-bold shrink-0 text-black">
          {/* Top Signatories Grid */}
-         <div className="grid grid-cols-2 gap-8 mb-4">
+         <div className="grid grid-cols-2 gap-8 mb-2">
             {/* Left Column Signatories */}
             <div className="space-y-4">
                <div>
@@ -254,7 +254,7 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
          </div>
 
          {/* Bottom Center Signatory (Approved By) */}
-         <div className="flex justify-center mt-2">
+         <div className="flex justify-center mt-1">
              <div className="w-1/3">
                 <div className="mb-2 text-center">APPROVED BY:</div>
                 <div className="border-b border-black w-full mb-0.5 text-center uppercase text-[10px]">VIRIAN TAN</div>

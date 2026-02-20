@@ -40,7 +40,7 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
     // We select all columns, which includes the 'items' JSON column
     const requisitionsResult = await client.execute(`
       SELECT * FROM requisitions 
-      ORDER BY date DESC 
+      ORDER BY date ASC 
       LIMIT 50
     `);
 

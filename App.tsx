@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { fetchDatabaseRecords, updateRequisitionStatus } from './services/dbService';
 import { DocumentData, PrintSettings } from './types';
 import PrintableDocument from './components/PrintableDocument';
+import toast, { Toaster } from 'react-hot-toast';
 import { 
   Printer, 
   Database, 
@@ -17,8 +18,11 @@ import {
   Copy,
   WifiOff,
   FileDown,
-  PenTool,
-  ArrowRight
+  PenLine,
+  ArrowRight,
+  Bell,
+  BellOff,
+  Volume2
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -29,11 +33,44 @@ const App: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const isSyncingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [lastSync, setLastSync] = useState<Date>(new Date());
   
-  // Track printed/exported documents locally to ensure immediate UI feedback
-  const [processedDocIds, setProcessedDocIds] = useState<Set<string>>(new Set());
+  // Notification State
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  
+  // Track printed/exported documents locally to ensure immediate UI feedback and persistence
+  const [processedDocIds, setProcessedDocIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('sunlight_processed_docs');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      console.error("Failed to load processed docs from localStorage", e);
+      return new Set();
+    }
+  });
+
+  // Track "NEW" documents that haven't been opened yet
+  const [newDocIds, setNewDocIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('sunlight_new_docs');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      console.error("Failed to load new docs from localStorage", e);
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sunlight_processed_docs', JSON.stringify(Array.from(processedDocIds)));
+  }, [processedDocIds]);
+
+  useEffect(() => {
+    localStorage.setItem('sunlight_new_docs', JSON.stringify(Array.from(newDocIds)));
+  }, [newDocIds]);
   
   // Print Settings State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -45,12 +82,43 @@ const App: React.FC = () => {
   
   // Ref for the sidebar to handle click outside
   const sidebarRef = useRef<HTMLDivElement>(null);
+  
+  // Ref to track latest documents for background sync comparison
+  const docsRef = useRef<DocumentData[]>([]);
+  useEffect(() => {
+    docsRef.current = documents;
+  }, [documents]);
 
   useEffect(() => {
     // Trigger splash animation on mount
     setTimeout(() => setSplashVisible(true), 100);
     loadData();
+
+    // Setup Notifications
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+
+    // Polling for new records every 30 seconds
+    const intervalId = setInterval(() => checkForNewRecords(true), 30000);
+    return () => clearInterval(intervalId);
   }, []);
+
+  const playNotificationSound = () => {
+    try {
+      // Using a slightly different, more reliable sound URL
+      const audio = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_7833324c0d.mp3');
+      audio.volume = 0.4;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(e => {
+          console.log("Audio play blocked. Interaction required.");
+        });
+      }
+    } catch (e) {
+      console.error("Audio playback error", e);
+    }
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -58,6 +126,7 @@ const App: React.FC = () => {
     try {
       const docs = await fetchDatabaseRecords();
       setDocuments(docs);
+      setLastSync(new Date());
       if (docs.length > 0 && !selectedDocId) {
         setSelectedDocId(docs[0].id);
       } else if (docs.length === 0) {
@@ -71,6 +140,160 @@ const App: React.FC = () => {
     }
   };
 
+  const checkForNewRecords = async (isSilent = false) => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    setIsSyncing(true);
+    try {
+      const newDocs = await fetchDatabaseRecords();
+      const now = new Date();
+      setLastSync(now);
+      
+      // Use the ref to get the most current documents without triggering re-renders or stale closures
+      const currentDocs = docsRef.current;
+      const prevDocsMap = new Map<string, DocumentData>(currentDocs.map(d => [d.id, d]));
+      
+      const newItems = newDocs.filter(d => !prevDocsMap.has(d.id));
+      const statusChanges = newDocs.filter(d => {
+        const prev = prevDocsMap.get(d.id);
+        return prev && prev.status !== d.status;
+      });
+
+      // Update documents state
+      setDocuments(newDocs);
+
+      // Handle side effects
+      if (newItems.length > 0 || statusChanges.length > 0) {
+        playNotificationSound();
+
+        if (newItems.length > 0) {
+          setNewDocIds(prev => {
+            const next = new Set(prev);
+            newItems.forEach(item => next.add(item.id));
+            return next;
+          });
+        }
+
+        if (Notification.permission === 'granted') {
+          if (newItems.length > 0) {
+            new Notification(newItems.length === 1 ? 'New Requisition' : 'New Requisitions', {
+              body: newItems.length === 1 
+                ? `Requisition #${newItems[0].id} from ${newItems[0].department} received.`
+                : `${newItems.length} new requisitions have been queued.`,
+              icon: '/vite.svg',
+              tag: 'new-items'
+            });
+          }
+          
+          statusChanges.forEach(doc => {
+            new Notification(`Status Updated: #${doc.id}`, {
+              body: `Requisition for ${doc.department} is now ${doc.status}.`,
+              icon: '/vite.svg',
+              tag: `status-${doc.id}`
+            });
+          });
+        }
+
+        if (newItems.length > 0) {
+          toast.success(
+            newItems.length === 1 
+              ? `New Requisition #${newItems[0].id} received!` 
+              : `${newItems.length} new requisitions received!`,
+            { duration: 5000, position: 'top-right', icon: '🔔', style: { background: '#4a0404', color: '#faca15', border: '1px solid #faca15' } }
+          );
+        }
+
+        statusChanges.forEach(doc => {
+          toast.success(`Requisition #${doc.id} is now ${doc.status}`, {
+            duration: 4000,
+            position: 'top-right',
+            icon: '📝',
+            style: { background: '#1e3a8a', color: 'white', border: '1px solid #3b82f6' }
+          });
+        });
+      } else if (!isSilent) {
+        toast("Database is up to date", { icon: '✅', style: { background: '#064e3b', color: '#faca15' } });
+      }
+    } catch (err) {
+      console.error("Background polling failed", err);
+      if (!isSilent) toast.error("Sync failed. Check connection.");
+    } finally {
+      setIsSyncing(false);
+      isSyncingRef.current = false;
+    }
+  };
+
+  const requestNotificationPermission = () => {
+    if (!('Notification' in window)) {
+      toast.error("This browser does not support desktop notifications.");
+      return;
+    }
+
+    if (Notification.permission !== 'granted') {
+      // Show the specific instructions provided by the user for the preview environment
+      toast((t) => (
+        <div className="flex flex-col gap-2">
+          <p className="font-bold text-sm">How to enable browser push:</p>
+          <ol className="text-[11px] list-decimal pl-4 space-y-1 text-maroon-200">
+            <li>Click the button below to open in a new tab.</li>
+            <li>In the new tab, click the <span className="text-gold-400 font-bold">Bell icon</span> again.</li>
+            <li>Click <span className="text-green-400 font-bold">"Allow"</span> when the browser prompts you.</li>
+            <li>Close that tab and return here!</li>
+          </ol>
+          <a 
+            href={window.location.href} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="mt-2 text-center py-2 px-3 bg-gold-500 text-maroon-950 rounded-lg font-bold text-xs hover:bg-gold-400 transition-colors"
+            onClick={() => toast.dismiss(t.id)}
+          >
+            Open in New Tab & Enable
+          </a>
+        </div>
+      ), {
+        duration: 15000,
+        style: {
+          background: '#4a0404',
+          color: '#faca15',
+          border: '1px solid #faca15',
+          minWidth: '280px'
+        }
+      });
+    }
+
+    Notification.requestPermission().then(permission => {
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        toast.success("Notifications Enabled!", {
+          style: { background: '#4a0404', color: '#faca15', border: '1px solid #faca15' }
+        });
+        new Notification("Notifications Enabled", {
+          body: "You will now be notified when new requisitions arrive.",
+          icon: '/vite.svg'
+        });
+      }
+    });
+  };
+
+  const testNotification = () => {
+    playNotificationSound();
+    toast.success("Test Notification Successful!", {
+      style: {
+        background: '#4a0404',
+        color: '#faca15',
+        border: '1px solid #faca15',
+      }
+    });
+    if (Notification.permission === 'granted') {
+      new Notification("Sunlight Printing System", {
+        body: "This is a test notification. System is active.",
+        icon: '/vite.svg'
+      });
+    } else {
+      toast("Enable browser notifications for full experience.", { icon: 'ℹ️' });
+    }
+  };
+
   const selectedDoc = documents.find(d => d.id === selectedDocId);
 
   // Helper to check if a document is considered "processed" (printed/exported/signed)
@@ -79,18 +302,26 @@ const App: React.FC = () => {
   };
 
   // Sort documents for sidebar: Unprocessed first, then Processed (Printed/Exported/For signing)
-  // Processed items are moved to the bottom.
+  // Processed items are moved to the bottom. Within groups, sort by Date ascending (Earliest First).
   const sidebarDocuments = useMemo(() => {
     return [...documents].sort((a, b) => {
       const aProcessed = isDocProcessed(a);
       const bProcessed = isDocProcessed(b);
       
-      // If one is processed and the other isn't, the processed one goes last (return 1)
+      // If one is processed and the other isn't, the processed one goes last
       if (aProcessed && !bProcessed) return 1;
       if (!aProcessed && bProcessed) return -1;
       
-      // Otherwise keep original order (by index/date)
-      return 0;
+      // Within groups, sort by Date ascending (Earliest First)
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      
+      if (dateA !== dateB) {
+        return dateA - dateB;
+      }
+      
+      // If dates are identical, use ID as a stable fallback (Earliest ID first)
+      return a.id.localeCompare(b.id);
     });
   }, [documents, processedDocIds]);
 
@@ -147,13 +378,20 @@ const App: React.FC = () => {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
-    (window as any).html2pdf().set(opt).from(element).save();
+    (window as any).html2pdf().set(opt).from(element).save().then(() => {
+      if (Notification.permission === 'granted') {
+        new Notification("PDF Exported", {
+          body: `Requisition #${selectedDoc?.id || 'doc'} has been successfully exported.`,
+          icon: '/vite.svg'
+        });
+      }
+    });
   };
 
   const getStatusIcon = (status: string) => {
     switch(status) {
       case 'Approved': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'For signing': return <PenTool className="w-4 h-4 text-blue-400" />;
+      case 'For signing': return <PenLine className="w-4 h-4 text-maroon-400" />;
       case 'Pending': return <Clock className="w-4 h-4 text-gold-400" />;
       default: return <AlertCircle className="w-4 h-4 text-gray-400" />;
     }
@@ -215,6 +453,7 @@ const App: React.FC = () => {
   if (!hasEntered) {
     return (
       <div className="h-screen w-screen bg-maroon-950 flex flex-col items-center justify-center relative overflow-hidden">
+        <Toaster />
         <style>{printStyles}</style>
         {/* Decorative Background Elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -269,6 +508,7 @@ const App: React.FC = () => {
   // MAIN APP RENDER
   return (
     <div className="flex h-screen bg-maroon-950 text-white overflow-hidden relative">
+      <Toaster />
       <style>{printStyles}</style>
 
       {/* Print Settings Modal */}
@@ -378,14 +618,6 @@ const App: React.FC = () => {
               className="w-full bg-maroon-950 border border-maroon-800 rounded-lg py-2 pl-9 pr-4 text-sm text-maroon-100 placeholder-maroon-400 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500"
             />
           </div>
-          <button 
-            onClick={loadData}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-2 bg-maroon-800 hover:bg-maroon-700 text-gold-400 text-xs font-medium rounded-lg transition-colors border border-maroon-700 disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh Database
-          </button>
         </div>
 
         {/* List */}
@@ -403,40 +635,56 @@ const App: React.FC = () => {
           ) : (
             sidebarDocuments.map((doc) => {
               const processed = isDocProcessed(doc);
+              const isNew = newDocIds.has(doc.id);
               return (
                 <button
                   key={doc.id}
                   onClick={() => {
                     setSelectedDocId(doc.id);
                     setIsSidebarOpen(false);
+                    // Remove "NEW" tag when opened
+                    if (newDocIds.has(doc.id)) {
+                      setNewDocIds(prev => {
+                        const next = new Set(prev);
+                        next.delete(doc.id);
+                        return next;
+                      });
+                    }
                   }}
                   className={`w-full text-left p-4 rounded-xl transition-all duration-200 group border ${
                     selectedDocId === doc.id 
-                      ? 'bg-maroon-800 border-gold-500/50 shadow-lg shadow-black/20' 
+                      ? 'bg-maroon-950 border-gold-500 shadow-[0_0_20px_rgba(0,0,0,0.4)] scale-[1.02]' 
                       : 'bg-transparent border-transparent hover:bg-maroon-800/50 hover:border-maroon-700'
                   } ${processed ? 'opacity-40 grayscale bg-maroon-950/30' : ''}`}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                      selectedDocId === doc.id ? 'bg-gold-500 text-maroon-900' : 
-                      processed ? 'bg-gray-700 text-gray-400' : 'bg-maroon-950 text-maroon-300 group-hover:bg-maroon-900'
-                    }`}>
-                      {doc.type}
-                    </span>
-                    <span className="text-xs text-maroon-300 font-mono">{doc.date}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                        selectedDocId === doc.id ? 'bg-gold-500 text-maroon-950' : 
+                        processed ? 'bg-gray-700 text-gray-400' : 'bg-maroon-800 text-maroon-300 group-hover:bg-maroon-700'
+                      }`}>
+                        {doc.type}
+                      </span>
+                      {isNew && !processed && (
+                        <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                          NEW
+                        </span>
+                      )}
+                    </div>
+                    <span className={`text-[10px] font-mono ${selectedDocId === doc.id ? 'text-maroon-200' : 'text-maroon-400'}`}>{doc.date}</span>
                   </div>
-                  <h3 className={`font-medium truncate mb-1 ${
+                  <h3 className={`font-bold truncate mb-2 ${
                     selectedDocId === doc.id ? 'text-white' : 'text-maroon-100'
                   }`}>
                     {doc.department}
                   </h3>
                   <div className="flex justify-between items-center">
-                     <div className="flex items-center gap-1.5 text-xs text-maroon-300">
+                     <div className={`flex items-center gap-1.5 text-[11px] font-medium ${selectedDocId === doc.id ? 'text-gold-400' : 'text-maroon-300'}`}>
                        {getStatusIcon(doc.status)}
                        <span>{doc.status}</span>
                      </div>
-                     <span className={`font-mono text-sm ${
-                       selectedDocId === doc.id ? 'text-gold-400' : 'text-gray-400'
+                     <span className={`font-mono text-[10px] font-bold ${
+                       selectedDocId === doc.id ? 'text-gold-500' : 'text-maroon-500'
                      }`}>
                        #{doc.id}
                      </span>
@@ -449,13 +697,35 @@ const App: React.FC = () => {
         
         {/* User Profile Mock */}
         <div className="p-4 border-t border-maroon-800 bg-maroon-900/50">
-            <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gold-500 flex items-center justify-center text-maroon-900 font-bold">
-                    A
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gold-500 flex items-center justify-center text-maroon-900 font-bold">
+                        A
+                    </div>
+                    <div className="overflow-hidden">
+                        <p className="text-sm font-medium text-white truncate">Admin User</p>
+                        <p className="text-xs text-maroon-300 truncate">Station #04 • Online</p>
+                    </div>
                 </div>
-                <div className="overflow-hidden">
-                    <p className="text-sm font-medium text-white truncate">Admin User</p>
-                    <p className="text-xs text-maroon-300 truncate">Station #04 • Online</p>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={testNotification}
+                    className="p-2 text-maroon-400 hover:text-gold-400 hover:bg-maroon-800 rounded-full transition-colors"
+                    title="Test Notification"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={requestNotificationPermission}
+                    className={`p-2 rounded-full transition-colors ${
+                      notificationPermission === 'granted' 
+                        ? 'text-gold-500 hover:bg-maroon-800' 
+                        : 'text-maroon-400 hover:text-gold-400 hover:bg-maroon-800'
+                    }`}
+                    title={notificationPermission === 'granted' ? 'Notifications Enabled' : 'Enable Notifications'}
+                  >
+                    {notificationPermission === 'granted' ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                  </button>
                 </div>
             </div>
         </div>
@@ -472,6 +742,24 @@ const App: React.FC = () => {
                <span className="hidden sm:inline">Source: Turso DB</span>
              </span>
              <span className="text-maroon-700">|</span>
+             <div className="flex items-center gap-2">
+               <button 
+                 onClick={() => checkForNewRecords(false)}
+                 disabled={isSyncing}
+                 className={`p-1 rounded-full transition-all ${isSyncing ? 'text-gold-500 animate-spin' : 'text-maroon-400 hover:text-gold-400 hover:bg-maroon-800'}`}
+                 title="Sync Now"
+               >
+                 <RefreshCw className="w-3 h-3" />
+               </button>
+               <span className="hidden md:inline text-xs">
+                 {isSyncing ? (
+                   <span className="text-gold-500 animate-pulse">Syncing...</span>
+                 ) : (
+                   `Last Sync: ${lastSync.toLocaleTimeString()}`
+                 )}
+               </span>
+             </div>
+             <span className="text-maroon-700 hidden md:inline">|</span>
              <span className="flex items-center gap-2">
                <FileText className="w-4 h-4 text-gold-500" />
                <span>{documents.length} Records</span>
