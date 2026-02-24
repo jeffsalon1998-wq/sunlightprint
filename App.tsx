@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { fetchDatabaseRecords, updateRequisitionStatus } from './services/dbService';
+import { fetchDatabaseRecords } from './services/dbService';
 import { DocumentData, PrintSettings } from './types';
 import PrintableDocument from './components/PrintableDocument';
 import toast, { Toaster } from 'react-hot-toast';
@@ -204,6 +204,13 @@ const App: React.FC = () => {
         }
 
         statusChanges.forEach(doc => {
+          if (doc.status === 'Completed' || doc.status === 'For signing') {
+            setNewDocIds(prev => {
+              const next = new Set(prev);
+              next.delete(doc.id);
+              return next;
+            });
+          }
           toast.success(`Requisition #${doc.id} is now ${doc.status}`, {
             duration: 4000,
             position: 'top-right',
@@ -298,7 +305,7 @@ const App: React.FC = () => {
 
   // Helper to check if a document is considered "processed" (printed/exported/signed)
   const isDocProcessed = (doc: DocumentData) => {
-    return processedDocIds.has(doc.id) || doc.status === 'For signing';
+    return processedDocIds.has(doc.id) || doc.status === 'For signing' || doc.status === 'Completed';
   };
 
   // Sort documents for sidebar: Unprocessed first, then Processed (Printed/Exported/For signing)
@@ -329,7 +336,7 @@ const App: React.FC = () => {
     setIsPrintModalOpen(true);
   };
 
-  const updateStatusToSigning = async (id: string) => {
+  const markDocumentAsProcessedLocally = async (id: string) => {
     // 1. Update local documents state
     setDocuments(prevDocs => prevDocs.map(d => 
         d.id === id ? { ...d, status: 'For signing' } : d
@@ -341,14 +348,11 @@ const App: React.FC = () => {
         newSet.add(id);
         return newSet;
     });
-
-    // 3. Update Database
-    await updateRequisitionStatus(id, 'For signing');
   };
 
   const executePrint = async () => {
     if (selectedDocId) {
-      await updateStatusToSigning(selectedDocId);
+      await markDocumentAsProcessedLocally(selectedDocId);
     }
     
     // We do not close the modal here to avoid state transitions (fading/blurring) 
@@ -358,7 +362,7 @@ const App: React.FC = () => {
 
   const handleExportPdf = async () => {
     if (selectedDocId) {
-      await updateStatusToSigning(selectedDocId);
+      await markDocumentAsProcessedLocally(selectedDocId);
     }
 
     const element = document.getElementById('printable-area');
