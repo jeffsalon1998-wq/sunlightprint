@@ -208,7 +208,7 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
                <tr className="h-[18px] font-bold text-[10px]">
                    <td className="border-r border-black border-t border-black" colSpan={5}></td>
                    <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black whitespace-nowrap">GRAND TOTAL</td>
-                   <td className="border-r border-black border-t border-black text-right px-1 text-black">{data.totalAmount.toFixed(2)}</td>
+                   <td className="border-r border-black border-t border-black text-right px-1 text-black">{data.items.reduce((sum, item) => sum + item.unitPrice, 0).toFixed(2)}</td>
                    <td className="border-r border-black border-t border-black" colSpan={2}></td>
                </tr>
             </tbody>
