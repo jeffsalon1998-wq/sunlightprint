@@ -158,10 +158,10 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
                     <td className="border-r border-black border-b border-gray-400 px-1 text-center">{item.uom}</td>
                     <td className="border-r border-black border-b border-gray-400 px-1"></td>
                     <td className="border-r border-black border-b border-gray-400 px-1 text-right">
-                        {!isPurchase && item.unitPrice.toFixed(2)}
+                        {!isPurchase && (item.quantity > 0 ? (item.unitPrice / item.quantity).toFixed(2) : '0.00')}
                     </td>
                     <td className="border-r border-black border-b border-gray-400 px-1 text-right font-bold">
-                        {!isPurchase && item.total.toFixed(2)}
+                        {!isPurchase && item.unitPrice.toFixed(2)}
                     </td>
                     <td className="border-r border-black border-b border-gray-400 px-1">
                        <div className="flex flex-col gap-[1px] text-[7px] leading-none pl-1">
