@@ -14,7 +14,7 @@ export interface DocumentData {
   purpose: string;
   date: string;
   deliverOn: string;
-  status: 'Approved' | 'Pending' | 'Processing' | 'For signing';
+  status: 'Approved' | 'Pending' | 'Processing' | 'For signing' | 'Completed';
   items: OrderItem[];
   totalAmount: number;
   
