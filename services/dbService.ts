@@ -107,7 +107,8 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
         approvedBy: getStr(row.approved_by || row.approvedBy),
         receivedBy: getStr(row.received_by || row.receivedBy),
         checkedBy: getStr(row.checked_by || row.checkedBy),
-        prFor: getStr(row.pr_for || row.prFor)
+        prFor: getStr(row.pr_for || row.prFor),
+        prNumber: getStr(row.pr_for || row.prNumber)
       });
     }
 

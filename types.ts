@@ -26,6 +26,7 @@ export interface DocumentData {
   receivedBy: string;
   checkedBy: string;
   prFor?: string;
+  prNumber?: string;
 }
 
 export interface PrintSettings {

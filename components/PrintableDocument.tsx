@@ -93,13 +93,9 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
            </div>
 
            {/* Right: Title & PR For */}
-           <div className="w-1/3 text-right pr-2 flex items-start justify-end gap-2">
-              {data.prFor && (
-                <div className="text-sm font-bold text-black uppercase font-serif tracking-widest whitespace-nowrap">
-                  {data.prFor}
-                </div>
-              )}
+           <div className="w-1/3 text-right pr-2">
               <h2 className="text-sm font-bold text-black leading-tight uppercase font-serif tracking-widest">
+                {(data.prFor || data.prNumber) && <span className="mr-2">{data.prFor || data.prNumber}</span>}
                 REQUISITION<br/>FORM
               </h2>
            </div>

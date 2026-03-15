@@ -19,7 +19,6 @@ export const fetchMockDatabaseRecords = async (): Promise<DocumentData[]> => {
       - purpose (e.g., "For guest amenities", "Weekly restocking", "Office supplies")
       - date (current dates, some from 2026-02-18 and 2026-02-19)
       - deliverOn (future dates)
-      - prNumber (Purchase Requisition Number, e.g., PR-2026-001 or empty string)
       - status (Pending, Approved, For signing)
       - items: Array of { description, quantity, uom (pcs, box, kg), unitPrice, total }
       - totalAmount (sum of item totals)
@@ -40,7 +39,6 @@ export const fetchMockDatabaseRecords = async (): Promise<DocumentData[]> => {
               purpose: { type: Type.STRING },
               date: { type: Type.STRING },
               deliverOn: { type: Type.STRING },
-              prNumber: { type: Type.STRING },
               status: { type: Type.STRING, enum: ['Approved', 'Pending', 'Processing'] },
               totalAmount: { type: Type.NUMBER },
               preparedBy: { type: Type.STRING },
@@ -84,9 +82,10 @@ export const fetchMockDatabaseRecords = async (): Promise<DocumentData[]> => {
         purpose: "Guest Room Supplies",
         date: "2024-10-25",
         deliverOn: "2024-10-27",
-        prNumber: "PR-2024-102",
         status: "Pending",
         totalAmount: 4500.00,
+        prNumber: "LOCAL",
+        prFor: "LOCAL",
         preparedBy: "Maria Cruz",
         notedBy: "Sarah Lee",
         approvedBy: "John Doe",
